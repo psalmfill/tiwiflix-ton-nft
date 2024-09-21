@@ -9,7 +9,7 @@ export async function run(provider: NetworkProvider) {
             {
                 ownerAddress: sender_address,
                 nextItemIndex: 0,
-                collectionContentUrl: 'collection.json',
+                collectionContentUrl: 'https://psalmfill.github.io/tiwiflix-ton-nft/assets/collection.json',
                 commonContentUrl: 'nft/',
                 nftItemCode: await compile('NftItem'),
                 royaltyParams: {
