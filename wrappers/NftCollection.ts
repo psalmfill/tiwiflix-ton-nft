@@ -6,7 +6,8 @@ export const Opcodes = {
     mint: 1,
     batchMint: 2,
     changeOwner: 3,
-    changeMintPrice: 4, // New opcode for updating mint price
+    changeContent: 4, // New opcode for updating mint price
+    changeMintPrice: 5, // New opcode for updating mint price
 };
 
 export type RoyaltyParams = {
@@ -169,6 +170,31 @@ export class NftCollection implements Contract {
                 .storeUint(opts.queryId, 64)
                 .storeAddress(opts.newOwnerAddress) // Update mint price
                 .endCell(),
+        });
+    }
+
+    async sendChangeContent(provider: ContractProvider, via: Sender, value: bigint, config: NftCollectionConfig) {
+        const content = beginCell()
+            .storeRef(encodeOffChainContent(config.collectionContentUrl))
+            .storeRef(beginCell().storeBuffer(Buffer.from(config.commonContentUrl)).endCell())
+            .endCell();
+        const royaltyParams = beginCell()
+            .storeUint(config.royaltyParams.factor, 16)
+            .storeUint(config.royaltyParams.base, 16)
+            .storeAddress(config.royaltyParams.address)
+            .endCell();
+
+        const body = beginCell()
+            .storeUint(Opcodes.changeContent, 32)
+            .storeUint(Date.now(), 64) // queryId
+            .storeRef(content)
+            .storeRef(royaltyParams)
+            .endCell();
+
+        return await provider.internal(via, {
+            value: value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body:body,
         });
     }
 

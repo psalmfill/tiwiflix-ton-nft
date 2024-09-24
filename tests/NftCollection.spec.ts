@@ -141,6 +141,38 @@ describe('NftCollection', () => {
         expect(collectionData.ownerAddress.toString()).toBe(deployer.address.toString());
     });
 
+    it('should update content', async () => {
+        const mintPrice = Number(toNano('0.1')); // Set the initial mint price to 0.1 TON
+        const newCollectionContentUrl = "https://psalmfill.github.io/tiwiflix-ton-nft/new-collection.json"
+        // Send a message to update the minting price
+        const updateContentResult = await nftCollection.sendChangeContent(deployer.getSender(), 
+        toNano('0.01'),
+        {
+            ownerAddress: deployer.address,
+            nextItemIndex: 0,
+            collectionContentUrl: newCollectionContentUrl,
+            commonContentUrl: 'https://psalmfill.github.io/tiwiflix-ton-nft',
+            nftItemCode: await compile('NftItem'),
+            royaltyParams: {
+                factor: 10,
+                base: 100,
+                address: deployer.address,
+            },
+            mintPrice, // Set the mint price in the configuration
+        });
+        console.log(updateContentResult)
+        // Ensure transaction is successful
+        expect(updateContentResult.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: nftCollection.address,
+            success: true,
+        });
+
+        // Verify collection data has been updated
+        const collectionData = await nftCollection.getCollectionData();
+        expect(collectionData.collectionContentUrl.toString()).toBe(newCollectionContentUrl);
+    });
+
     // Test case 5: Batch deploy NFTs
     // it('should batch deploy NFTs', async () => {
     //     const nftContent = new Cell(); // Add any necessary NFT content

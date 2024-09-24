@@ -179,8 +179,13 @@ slice calculate_nft_item_address(int wc, cell state_init) {
       save_data(new_owner, next_item_index, content, nft_item_code, royalty_params, minting_price);
       return ();
     }
+
+    if (op == 4) { ;; change content and royalty params
+      save_data(owner_address, next_item_index, in_msg_body~load_ref(), nft_item_code, in_msg_body~load_ref(), minting_price);
+      return ();
+    }
     ;; Allow owner to update minting price
-  if (op == 4) { ;; Change minting price
+  if (op == 5) { ;; Change minting price
     int new_minting_price = in_msg_body~load_uint(64);
     save_data(owner_address, next_item_index, content, nft_item_code, royalty_params, new_minting_price);
     return ();
