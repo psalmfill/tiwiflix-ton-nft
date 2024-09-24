@@ -10,15 +10,6 @@ export async function run(provider: NetworkProvider, args: string[]) {
 
     const nftCollection = provider.open(NftCollection.createFromAddress(address));
 
-    const data = await nftCollection.getCollectionData();
-    const mintFee = await nftCollection.getMintingPrice();
-    console.log('Deploy NFT mint fee: ', mintFee);
-    await nftCollection.sendMint(provider.sender(), {
-        index: data.nextItemIndex,
-        value: toNano('0.05')+ BigInt(mintFee),
-        queryId: Date.now(),
-        coinsForStorage: toNano('0.05')+ BigInt(mintFee),
-        ownerAddress: provider.sender().address as Address,
-        content: '/nft.json',
-    });
+    const data = await nftCollection.getMintingPrice();
+    console.log(data);
 }

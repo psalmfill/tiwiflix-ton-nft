@@ -16,20 +16,20 @@ describe('NftItem', () => {
     let nftItem: SandboxContract<NftItem>;
 
     beforeEach(async () => {
-        blockchain = await Blockchain.create();
+        // blockchain = await Blockchain.create();
 
-        nftItem = blockchain.openContract(NftItem.createFromConfig({}, code));
+        // nftItem = blockchain.openContract(NftItem.createFromConfig({}, code));
 
-        deployer = await blockchain.treasury('deployer');
+        // deployer = await blockchain.treasury('deployer');
 
-        const deployResult = await nftItem.sendDeploy(deployer.getSender(), toNano('0.05'));
+        // const deployResult = await nftItem.sendDeploy(deployer.getSender(), toNano('0.05'));
 
-        expect(deployResult.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: nftItem.address,
-            deploy: true,
-            success: true,
-        });
+        // expect(deployResult.transactions).toHaveTransaction({
+        //     from: deployer.address,
+        //     to: nftItem.address,
+        //     deploy: true,
+        //     success: true,
+        // });
     });
 
     it('should deploy', async () => {

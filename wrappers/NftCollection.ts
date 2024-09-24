@@ -6,7 +6,7 @@ export const Opcodes = {
     mint: 1,
     batchMint: 2,
     changeOwner: 3,
-    changeContent: 4,
+    changeMintPrice: 4, // New opcode for updating mint price
 };
 
 export type RoyaltyParams = {
@@ -22,6 +22,7 @@ export type NftCollectionConfig = {
     commonContentUrl: string;
     nftItemCode: Cell;
     royaltyParams: RoyaltyParams;
+    mintPrice: number; // Add mint price
 };
 
 export function nftCollectionConfigToCell(config: NftCollectionConfig): Cell {
@@ -41,6 +42,7 @@ export function nftCollectionConfigToCell(config: NftCollectionConfig): Cell {
         .storeRef(content)
         .storeRef(config.nftItemCode)
         .storeRef(royaltyParams)
+        .storeUint(config.mintPrice, 64) // Store mint price
         .endCell();
 }
 
@@ -83,25 +85,6 @@ export class NftCollection implements Contract {
         });
     }
 
-    // async sendMint(
-    //     provider: ContractProvider,
-    //     via: Sender,
-    //     opts: {
-    //         value: bigint;
-    //         queryId: number;
-    //         coinsForStorage: bigint;
-    //     },
-    // ) {
-    //     await provider.internal(via, {
-    //         value: opts.value,
-    //         sendMode: SendMode.PAY_GAS_SEPARATELY,
-    //         body: beginCell()
-    //             .storeUint(Opcodes.mint, 32)
-    //             .storeUint(opts.queryId, 64)
-    //             .storeCoins(opts.coinsForStorage)
-    //             .endCell(),
-    //     });
-    // }
     async sendMint(
         provider: ContractProvider,
         via: Sender,
@@ -109,20 +92,20 @@ export class NftCollection implements Contract {
             value: bigint;
             queryId: number;
             coinsForStorage: bigint;
-            ownerAddress: Address,
-            content: string,
-            index: number
+            ownerAddress: Address;
+            content: string;
+            index: number;
         },
     ) {
         const nftItemContent = beginCell();
         nftItemContent.storeAddress(opts.ownerAddress);
-    
+
         const uriContent = beginCell();
         uriContent.storeBuffer(Buffer.from(opts.content));
         nftItemContent.storeRef(uriContent.endCell());
-        
+
         await provider.internal(via, {
-            value: opts.value,
+            value: opts.value, // Ensure this includes the mint price
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(Opcodes.mint, 32)
@@ -133,6 +116,7 @@ export class NftCollection implements Contract {
                 .endCell(),
         });
     }
+
     async sendBatchMint(
         provider: ContractProvider,
         via: Sender,
@@ -146,6 +130,51 @@ export class NftCollection implements Contract {
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell().storeUint(Opcodes.batchMint, 32).storeUint(opts.queryId, 64).endCell(),
         });
+    }
+
+    async sendChangeMintPrice(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint;
+            queryId: number;
+            newMintPrice: number;
+        },
+    ) {
+        return await provider.internal(via, {
+            value: opts.value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(Opcodes.changeMintPrice, 32)
+                .storeUint(opts.queryId, 64)
+                .storeUint(opts.newMintPrice, 64) // Update mint price
+                .endCell(),
+        });
+    }
+
+    async sendChangeOwner(
+        provider: ContractProvider,
+        via: Sender,
+        opts: {
+            value: bigint;
+            queryId: number;
+            newOwnerAddress: Address;
+        },
+    ) {
+        return await provider.internal(via, {
+            value: opts.value,
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: beginCell()
+                .storeUint(Opcodes.changeOwner, 32)
+                .storeUint(opts.queryId, 64)
+                .storeAddress(opts.newOwnerAddress) // Update mint price
+                .endCell(),
+        });
+    }
+
+    async getMintingPrice(provider: ContractProvider): Promise<number> {
+        const { stack } = await provider.get('get_minting_price', []);
+        return stack.readNumber(); // Return mint price
     }
 
     async getCollectionData(provider: ContractProvider): Promise<{
