@@ -47,29 +47,19 @@ slice calculate_nft_item_address(int wc, cell state_init) {
                      .begin_parse();
 }
 
-() batch_deploy_nft_item(int item_index, cell nft_item_code, int amount, cell nft_content) impure {
-  var (owner_address, next_item_index, content, nft_item_code, royalty_params, minting_price) = load_data();
-
-  cell state_init = calculate_nft_item_state_init(item_index, nft_item_code);
-  slice nft_address = calculate_nft_item_address(workchain(), state_init);
-  var msg = begin_cell()
-            .store_uint(0x18, 6)
-            .store_slice(nft_address)
-            .store_coins(amount)
-            .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
-            .store_ref(state_init)
-            .store_ref(nft_content);
-  send_raw_message(msg.end_cell(), 1); ;; pay transfer fees separately, revert on errors
-}
-
-() deploy_nft_item(int item_index, cell nft_item_code, int total_coins, cell nft_content) impure {
+() deploy_nft_item(int item_index, cell nft_item_code, int total_coins, cell nft_content, slice sender_address) impure {
     var (owner_address, next_item_index, content, nft_item_code, royalty_params, minting_price) = load_data();
 
-    ;; Ensure the minting price is covered
-    throw_unless(403, total_coins >= minting_price);
+    ;; Ensure the minting price is covered if the sender is not the owner
+    if (equal_slices(owner_address, sender_address) != true) {
+        throw_unless(403, total_coins >= minting_price);
+    }
 
     ;; Separate the minting fee and the remaining coins for the NFT storage
-    int remaining_coins = total_coins - minting_price;
+    int remaining_coins = total_coins;
+    if (total_coins >= minting_price) {
+        remaining_coins = total_coins - minting_price;
+    }
 
     ;; Deploy the NFT with the remaining coins
     cell state_init = calculate_nft_item_state_init(item_index, nft_item_code);
@@ -83,15 +73,18 @@ slice calculate_nft_item_address(int wc, cell state_init) {
               .store_ref(nft_content);
     send_raw_message(msg.end_cell(), 1); ;; Pay transfer fees separately, revert on errors
 
-    ;; Transfer the minting fee to the owner
-    var fee_msg = begin_cell()
-                  .store_uint(0x18, 6) ;; bounce message
-                  .store_slice(owner_address)
-                  .store_coins(minting_price)
-                  .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
-                  .end_cell();
-    send_raw_message(fee_msg, 1);
+    ;; Transfer the minting fee to the owner, if any
+    if (total_coins >= minting_price){
+        var fee_msg = begin_cell()
+                      .store_uint(0x18, 6) ;; bounce message
+                      .store_slice(owner_address)
+                      .store_coins(minting_price)
+                      .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1) ;; default message headers
+                      .end_cell();
+        send_raw_message(fee_msg, 1);
+    }
 }
+
 
 () send_royalty_params(slice to_address, int query_id, slice data) impure inline {
   var msg = begin_cell()
@@ -129,33 +122,35 @@ slice calculate_nft_item_address(int wc, cell state_init) {
 
     ;;modification - anybody can deploy
     if (op == 1) { ;; deploy new nft
-    int item_index = in_msg_body~load_uint(64);
-    throw_unless(402, item_index <= next_item_index);
+      int item_index = in_msg_body~load_uint(64);
+      throw_unless(402, item_index <= next_item_index);
 
-    ;; Extract the total amount of coins from the message
-    int total_coins = in_msg_body~load_coins();
+      ;; Extract the total amount of coins from the message
+      int total_coins = in_msg_body~load_coins();
 
-    ;; Extract the nft_content
-    cell nft_content = in_msg_body~load_ref();
+      ;; Extract the nft_content
+      cell nft_content = in_msg_body~load_ref();
 
-    ;; Check if the item_index is the last one
-    var is_last = item_index == next_item_index;
+      ;; Check if the item_index is the last one
+      var is_last = item_index == next_item_index;
 
-    ;; Call deploy_nft_item with the appropriate separation of mint_fee and amount
-    deploy_nft_item(item_index, nft_item_code, total_coins, nft_content);
+      ;; Call deploy_nft_item with the appropriate separation of mint_fee and amount
+      deploy_nft_item(item_index, nft_item_code, total_coins, nft_content, sender_address);
 
-    if (is_last) {
-        next_item_index += 1;
-        save_data(owner_address, next_item_index, content, nft_item_code, royalty_params, minting_price);
+      if (is_last) {
+          next_item_index += 1;
+          save_data(owner_address, next_item_index, content, nft_item_code, royalty_params, minting_price);
+      }
+      return ();
     }
-    return ();
-}
 
     throw_unless(401, equal_slices(sender_address, owner_address));
 
     if (op == 2) { ;; batch deploy of new nfts
       int counter = 0;
       cell deploy_list = in_msg_body~load_ref();
+        ;; var (item_index, item, f?) = deploy_list~udict::delete_get_min(64);
+
       do {
         var (item_index, item, f?) = deploy_list~udict::delete_get_min(64);
         if (f?) {
@@ -165,7 +160,7 @@ slice calculate_nft_item_address(int wc, cell state_init) {
           }
 
           throw_unless(403 + counter, item_index <= next_item_index);
-          batch_deploy_nft_item(item_index, nft_item_code, item~load_coins(), item~load_ref());
+          deploy_nft_item(item_index, nft_item_code, item~load_coins(), item~load_ref(), sender_address);
           if (item_index == next_item_index) {
             next_item_index += 1;
           }

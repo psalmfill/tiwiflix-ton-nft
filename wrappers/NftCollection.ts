@@ -124,12 +124,13 @@ export class NftCollection implements Contract {
         opts: {
             value: bigint;
             queryId: number;
+            deployList: Cell
         },
     ) {
         await provider.internal(via, {
             value: opts.value,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: beginCell().storeUint(Opcodes.batchMint, 32).storeUint(opts.queryId, 64).endCell(),
+            body: beginCell().storeUint(Opcodes.batchMint, 32).storeUint(opts.queryId, 64).storeRef(opts.deployList).endCell(),
         });
     }
 
