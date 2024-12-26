@@ -1,4 +1,16 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode } from '@ton/core';
+import {
+    Address,
+    beginCell,
+    Cell,
+    Contract,
+    contractAddress,
+    ContractProvider,
+    Dictionary,
+    DictionaryValue,
+    Sender,
+    SendMode,
+    toNano,
+} from '@ton/core';
 import { decodeOffChainContent, encodeOffChainContent } from './metadata';
 
 export const Opcodes = {
@@ -124,14 +136,52 @@ export class NftCollection implements Contract {
         opts: {
             value: bigint;
             queryId: number;
-            deployList: Cell
+            addresses: Address[];
+            nextItemIndex: number;
         },
     ) {
+        const mintDict = Dictionary.empty(Dictionary.Keys.Uint(64), this.createMessageValue()); // Key: Uint(64)
+
+        for (let i = opts.nextItemIndex; i < opts.addresses.length; i++) {
+            const nftContent = beginCell(); // Create your NFT content cell
+            nftContent.storeAddress(opts.addresses[i]); // Store the owner's address
+
+            const uriContent = beginCell();
+            uriContent.storeBuffer(Buffer.from('/nft.json'));
+            nftContent.storeRef(uriContent.endCell());
+            mintDict.set(i, {
+                value: toNano(0.01),
+                content: nftContent.endCell(),
+            }); // Use sequential BigInt keys starting from 1
+        }
         await provider.internal(via, {
             value: opts.value,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: beginCell().storeUint(Opcodes.batchMint, 32).storeUint(opts.queryId, 64).storeRef(opts.deployList).endCell(),
+            body:  beginCell()
+            .storeUint(Opcodes.batchMint, 32) // Opcode for send
+            .storeUint(opts.queryId ?? 0, 64) // Optional query ID (default 0)
+            // .storeCoins(opts.value) // Value for the transaction
+            .storeDict(mintDict, Dictionary.Keys.Uint(64), {
+                serialize: (src: { value: number; content: Cell }, builder) => {
+                    builder.storeCoins(src.value).storeRef(src.content);
+                },
+                parse: (src) => {
+                    return { value: src.loadCoins(), destination: src.loadRef() };
+                },
+            }) // Store the transfer dictionary
+            .endCell(),
         });
+    }
+
+    createMessageValue(): DictionaryValue<any> {
+        return {
+            serialize: (src, builder) => {
+                builder.storeCoins(src.value).storeRef(src.content);
+            },
+            parse: (src) => {
+                return { value: src.loadCoins(), content: src.loadRef() };
+            },
+        };
     }
 
     async sendChangeMintPrice(
@@ -195,7 +245,7 @@ export class NftCollection implements Contract {
         return await provider.internal(via, {
             value: value,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body:body,
+            body: body,
         });
     }
 

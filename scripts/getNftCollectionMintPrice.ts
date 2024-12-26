@@ -1,4 +1,4 @@
-import { Address, toNano } from '@ton/core';
+import { Address, fromNano, toNano } from '@ton/core';
 import { NftItem } from '../wrappers/NftItem';
 import { compile, NetworkProvider } from '@ton/blueprint';
 import { NftCollection } from '../wrappers/NftCollection';
@@ -11,5 +11,5 @@ export async function run(provider: NetworkProvider, args: string[]) {
     const nftCollection = provider.open(NftCollection.createFromAddress(address));
 
     const data = await nftCollection.getMintingPrice();
-    console.log(data);
+    console.log(data, fromNano(data));
 }

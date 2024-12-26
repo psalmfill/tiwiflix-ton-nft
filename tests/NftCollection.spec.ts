@@ -200,161 +200,34 @@ describe('NftCollection', () => {
     });
 
     // Test case 5: Batch deploy NFTs
-    // it('should batch deploy multiple NFTs', async () => {
-    //     const nftBatch = [];
-    //     const batchSize = 5; // Example batch size
-
-    //     // Prepare a list of NFTs to deploy in batch
-    //     for (let i = 0; i < batchSize; i++) {
-    //         const nftContent = beginCell(); // Create your NFT content cell
-    //         nftContent.storeAddress(deployer.address); // Store the owner's address
-
-    //         const uriContent = beginCell();
-    //         uriContent.storeBuffer(Buffer.from('/nft.json'));
-    //         nftContent.storeRef(uriContent.endCell());
-
-    //         nftBatch.push({
-    //             index: i,
-    //             coins: toNano('0.05'), // The storage fee for each NFT
-    //             content: nftContent.endCell(), // The NFT content
-    //         });
-    //     }
-
-    //     // Prepare the batch cell to send
-    //     const batchCell = beginCell();
-
-    //     // Use the built-in serializer for uint (64-bit unsigned integers)
-    //     const nftDict = Dictionary.empty(Dictionary.Keys.Uint(64), Dictionary.Values.Cell()); // Use Uint(64) for key type
-
-    //     for (let nft of nftBatch) {
-    //         // Create the cell for batch_deploy_nft_item (store coins and content)
-    //         const nftItemCell = beginCell()
-    //             .storeCoins(nft.coins)    // This is the amount (int amount)
-    //             .storeRef(nft.content)    // This is the NFT content (cell nft_content)
-    //             .endCell();
-
-    //         // Add to dictionary with index as the key and the nftItemCell as the value
-    //         nftDict.set(nft.index, nftItemCell);
-    //     }
-
-    //     batchCell.storeDictDirect(nftDict); // Store the dictionary in the batch cell
-
-    //     // Send the batch deployment message
-    //     const batchDeployResult = await nftCollection.sendBatchMint(deployer.getSender(), {
-    //         value: toNano('1'), // Value sent to cover the entire batch
-    //         queryId: Date.now(),
-    //         deployList: batchCell.endCell(), // The batch cell containing all NFTs
-    //     });
-
-    //     // Ensure batch deployment was successful
-    //     expect(batchDeployResult.transactions).toHaveTransaction({
-    //         from: deployer.address,
-    //         to: nftCollection.address,
-    //         success: true,
-    //     });
-
-    //     // Check that the next_item_index has incremented properly
-    //     const collectionData = await nftCollection.getCollectionData();
-    //     expect(collectionData.nextItemIndex.toString()).toBe(batchSize.toString()); // All NFTs should be deployed
-    // });
-
-    // it('should batch deploy multiple NFTs', async () => {
-    //     const collectionData = await nftCollection.getCollectionData();
-    //     let nextItemIndex = collectionData.nextItemIndex;
-    //     const nftMinStorage = '0.05';
-    //     let counter = 0;
-    //     const nftDict = Dictionary.empty<number, Cell>();
-    //     for (let index = 0; index < 3; index++) {
-    //         const metaCell = beginCell().storeStringTail('/nft.json').endCell();
-    //         const nftContent = beginCell().storeAddress(deployer.address).storeRef(metaCell).endCell();
-    //         nftDict.set(nextItemIndex, nftContent);
-    //         nextItemIndex++;
-    //         counter++;
-    //     }
-
-    //     /*
-    //     We need to write our custom serialization and deserialization
-    //     functions to store data correctly in the dictionary since the
-    //     built-in functions in the library are not suitable for our case.
-    // */
-    //     const messageBody = beginCell()
-    //         .storeUint(2, 32)
-    //         .storeUint(Date.now(), 64)
-    //         .storeDict(nftDict, Dictionary.Keys.Uint(64), {
-    //             serialize: (src, builder) => {
-    //                 builder.storeCoins(toNano(nftMinStorage));
-    //                 builder.storeRef(src);
-    //             },
-    //             parse: (src) => {
-    //                 return beginCell().storeCoins(src.loadCoins()).storeRef(src.loadRef()).endCell();
-    //             },
-    //         })
-    //         .endCell();
-
-    //     const totalValue = String((counter * parseFloat(nftMinStorage.toString()) + 0.015 * counter).toFixed(6));
-    //     const batchDeployResult = await nftCollection.sendBatchMint(deployer.getSender(), {
-    //         value: toNano(totalValue), // Value sent to cover the entire batch
-    //         queryId: Date.now(),
-    //         deployList: messageBody, // The batch cell containing all NFTs
-    //     });
-
-    //     // Ensure batch deployment was successful
-    //     expect(batchDeployResult.transactions).toHaveTransaction({
-    //         from: deployer.address,
-    //         to: nftCollection.address,
-    //         success: false,
-    //     });
-    // });
-
-    it('should batch deploy multiple NFTs', async () => {
+    it('should batch deploy NFTs', async () => {
         const collectionData = await nftCollection.getCollectionData();
         let nextItemIndex = collectionData.nextItemIndex;
-        const nftMinStorage = '0.05';
-        let counter = 0;
-        const nfts =[];
-        const mintCount = 2;
-        for (let itemIndex = nextItemIndex; itemIndex < nextItemIndex + mintCount; itemIndex++) {
-            const itemContentUri = `/nft.json`
-            const nft = { itemContentUri, itemOwnerAddress:deployer.address, nftMinStorage, itemIndex }
-            nfts.push(nft)
-            counter++;
-          }
+        const address1 = await blockchain.treasury('address1');
+        const address2 = await blockchain.treasury('address2');
+        const address3 = await blockchain.treasury('address3');
+        const address4 = await blockchain.treasury('address4');
+        const address5 = await blockchain.treasury('address5');
 
-        /*
-        We need to write our custom serialization and deserialization
-        functions to store data correctly in the dictionary since the
-        built-in functions in the library are not suitable for our case.
-    */
-        const nftDict = Dictionary.empty(Dictionary.Keys.Uint(64), Dictionary.Values.Cell()); // Use Uint(64) for key type
+        const addresses = [
+            address1.address, address2.address, address3.address, address4.address, address5.address
+        ]
 
-        for (let nft of nfts) {
-            // Create the cell for batch_deploy_nft_item (store coins and content)
-            const nftContent = beginCell(); // Create your NFT content cell
-                    nftContent.storeAddress(deployer.address); // Store the owner's address
-        
-                    const uriContent = beginCell();
-                    uriContent.storeBuffer(Buffer.from('/nft.json'));
-                    nftContent.storeRef(uriContent.endCell());
-        
-            const container = beginCell().storeCoins(toNano(nft.nftMinStorage)).storeRef(nftContent.endCell()).endCell()
-            // Add to dictionary with index as the key and the nftItemCell as the value
-            nftDict.set(nft.itemIndex, container);
-        }
+        const txResult = await nftCollection.sendBatchMint(
+            deployer.getSender(), {
+                addresses,
+                value: toNano(0.015 * addresses.length), // Using the increased value
+                queryId: Date.now(),
+                nextItemIndex
+            }
+        )
 
-        const totalValue = String((counter * parseFloat(nftMinStorage.toString()) + 0.015 * counter).toFixed(6));
-        console.log('totalValue', totalValue);
-        const batchDeployResult = await nftCollection.sendBatchMint(deployer.getSender(), {
-            value: toNano(totalValue), // Value sent to cover the entire batch
-            queryId: Date.now(),
-            deployList: beginCell().storeDictDirect(nftDict).endCell(), // The batch cell containing all NFTs
-        });
-
-        // Ensure batch deployment was successful
-        expect(batchDeployResult.transactions).toHaveTransaction({
+        expect(txResult.transactions).toHaveTransaction({
             from: deployer.address,
             to: nftCollection.address,
             success: true,
         });
+
     });
 
     // Test case 6: Get royalty parameters

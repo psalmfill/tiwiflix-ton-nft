@@ -11,6 +11,8 @@ export async function run(provider: NetworkProvider, args: string[]) {
     const nftCollection = provider.open(NftCollection.createFromAddress(address));
 
     const data = await nftCollection.getCollectionData();
+    const mintFee = await nftCollection.getMintingPrice();
+
     const addresses = [
         // 'UQCceSo89ihRMgSKOb1l_-MRx4ACc8jSyNl0kcRaCpzsoqYO',
         // 'UQAZwGM6-nqTWDXTLRy0Pz56kI8Sn2a1kNDTmHr1-CUGqVjc',
@@ -39,16 +41,16 @@ export async function run(provider: NetworkProvider, args: string[]) {
     //     });
     // }
     
-    for (let i=0; i <10; i++) {
+    // for (let i=0; i <10; i++) {
         await nftCollection.sendMint(provider.sender(), {
-            index: data.nextItemIndex + i,
-            value: toNano('0.05'),
+            index: data.nextItemIndex,
+            value: toNano('0.05') + BigInt(mintFee),
             queryId: Date.now(),
-            coinsForStorage: toNano('0.05'),
+            coinsForStorage: toNano('0.05') + BigInt(mintFee),
             ownerAddress: Address.parse("UQDX_-IkBiezyXThobsU93xsv7a4eOq2c8H5z6shb7cJNHAA"),
             content: '/nft.json',
         });
 
-        console.log("completed", i)
-    }
+        console.log("completed")
+    // }
 }
